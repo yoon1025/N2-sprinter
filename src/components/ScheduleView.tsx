@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Calendar,
   CheckCircle2,
@@ -9,7 +8,8 @@ import {
   Sparkles,
   Link,
   ShieldCheck,
-  CheckSquare
+  CheckSquare,
+  Bell
 } from 'lucide-react';
 import { WEEKDAY_ROUTINES, WEEKEND_CHECKLIST, EXTERNAL_RESOURCES } from '../data/schedule';
 import { ActiveTab } from '../types';
@@ -19,15 +19,50 @@ interface ScheduleViewProps {
   completedRoutineIds: string[];
   onToggleRoutineCheck: (routineId: string) => void;
   onNavigateTab: (tab: ActiveTab) => void;
+  onOpenNotificationModal: () => void;
 }
 
 export const ScheduleView: React.FC<ScheduleViewProps> = ({
   completedRoutineIds,
   onToggleRoutineCheck,
-  onNavigateTab
+  onNavigateTab,
+  onOpenNotificationModal
 }) => {
   return (
     <div className="space-y-6 pb-6">
+      {/* Top Banner: Commute Push Notification Scheduler */}
+      <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700 text-white rounded-3xl p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-emerald-400/30">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0">
+            <Bell className="w-6 h-6 text-amber-300 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-200 font-bold mb-0.5">
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+              <span>로컬 알림 스케줄러 내장</span>
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-white">
+              출퇴근 시간에 맞춰 푸시 알림 예약하기
+            </h3>
+            <p className="text-xs text-emerald-100 mt-0.5">
+              지하철 탑승 시간(오전 8:00, 오후 6:30 등)에 맞춰 학습 알람을 울려드립니다.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            soundService.playClick();
+            onOpenNotificationModal();
+          }}
+          className="px-4 py-2.5 rounded-2xl bg-white text-slate-900 font-extrabold text-xs sm:text-sm hover:bg-amber-300 transition-colors shadow-sm shrink-0 self-start sm:self-auto cursor-pointer flex items-center gap-1.5"
+        >
+          <Bell className="w-4 h-4 text-emerald-600" />
+          <span>알람 시간 설정하기</span>
+        </button>
+      </div>
+
       {/* 1. Weekday Routine Table for Commuter / Part-timer */}
       <section className="bg-white dark:bg-slate-800/95 rounded-3xl p-5 sm:p-6 border border-slate-200 dark:border-slate-700 shadow-xs space-y-4">
         <div className="flex items-center justify-between">

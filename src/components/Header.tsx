@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Volume2, VolumeX, Moon, Sun, Calendar, Flame, RefreshCw } from 'lucide-react';
+import { Volume2, VolumeX, Moon, Sun, Calendar, Flame, RefreshCw, Bell } from 'lucide-react';
 import { soundService } from '../utils/sound';
 
 interface HeaderProps {
@@ -9,6 +9,8 @@ interface HeaderProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   onResetToday: () => void;
+  onOpenNotificationModal: () => void;
+  hasActiveAlarms: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -17,7 +19,9 @@ export const Header: React.FC<HeaderProps> = ({
   onUpdateExamDate,
   isDarkMode,
   onToggleDarkMode,
-  onResetToday
+  onResetToday,
+  onOpenNotificationModal,
+  hasActiveAlarms
 }) => {
   const [isMuted, setIsMuted] = useState(soundService.getMuted());
   const [showDateModal, setShowDateModal] = useState(false);
@@ -81,6 +85,22 @@ export const Header: React.FC<HeaderProps> = ({
             <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
             <span className="tabular-nums font-bold">{streakDays}일</span>
           </div>
+
+          {/* Commute Notification Alarm Scheduler button */}
+          <button
+            onClick={() => {
+              soundService.playClick();
+              onOpenNotificationModal();
+            }}
+            aria-label="출퇴근 푸시 알림 설정"
+            title="출퇴근 푸시 알림 예약"
+            className="relative w-9 h-9 flex items-center justify-center rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          >
+            <Bell className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            {hasActiveAlarms && (
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
+            )}
+          </button>
 
           {/* Sound Toggle */}
           <button

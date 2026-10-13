@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ActiveTab } from './types';
 import { Header } from './components/Header';
 import { BottomNav } from './components/BottomNav';
@@ -14,6 +14,8 @@ import { ReadingView } from './components/ReadingView';
 import { QuizView } from './components/QuizView';
 import { ScheduleView } from './components/ScheduleView';
 import { CoachModal } from './components/CoachModal';
+import { NotificationModal } from './components/NotificationModal';
+import { InAppNotificationBanner } from './components/InAppNotificationBanner';
 
 import { VOCABULARY_LIST } from './data/words';
 import { GRAMMAR_QUESTS } from './data/grammar';
@@ -21,6 +23,13 @@ import { READING_PASSAGES } from './data/reading';
 import { DAILY_QUIZZES } from './data/quiz';
 import { getRandomPraise, PraiseQuote } from './data/praise';
 import { soundService } from './utils/sound';
+import {
+  AlarmSetting,
+  getStoredAlarms,
+  saveStoredAlarms,
+  checkNotificationPermission,
+  sendLocalNotification
+} from './utils/notification';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -37,6 +46,80 @@ export default function App() {
 
   // Active coach praise toast
   const [currentPraise, setCurrentPraise] = useState<PraiseQuote | null>(null);
+
+  // Commute Notification Scheduler State
+  const [alarms, setAlarms] = useState<AlarmSetting[]>(getStoredAlarms);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState<boolean>(false);
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermission | 'unsupported'>('default');
+  const [inAppNotification, setInAppNotification] = useState<{
+    title: string;
+    message: string;
+    targetTab?: ActiveTab;
+  } | null>(null);
+
+  // Track last fired alarm key to prevent duplicate triggers in the same minute
+  const lastFiredMinuteRef = useRef<string>('');
+
+  // Check notification permission on mount
+  useEffect(() => {
+    setPermissionStatus(checkNotificationPermission());
+  }, []);
+
+  const refreshPermission = () => {
+    setPermissionStatus(checkNotificationPermission());
+  };
+
+  const handleUpdateAlarms = (newAlarms: AlarmSetting[]) => {
+    setAlarms(newAlarms);
+    saveStoredAlarms(newAlarms);
+  };
+
+  // Local Alarm Scheduler: Checks every 20 seconds
+  useEffect(() => {
+    const checkSchedule = () => {
+      const now = new Date();
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMins = String(now.getMinutes()).padStart(2, '0');
+      const currentTimeStr = `${currentHours}:${currentMins}`;
+
+      // Check if we already alerted in this exact minute
+      if (lastFiredMinuteRef.current === currentTimeStr) {
+        return;
+      }
+
+      alarms.forEach((alarm) => {
+        if (alarm.enabled && alarm.time === currentTimeStr) {
+          lastFiredMinuteRef.current = currentTimeStr;
+
+          // Determine target tab for quick navigation
+          let targetTab: ActiveTab = 'dashboard';
+          if (alarm.category === 'morning' || alarm.category === 'evening') {
+            targetTab = 'vocab';
+          } else if (alarm.category === 'lunch') {
+            targetTab = 'grammar';
+          } else if (alarm.category === 'night') {
+            targetTab = 'reading';
+          }
+
+          // 1. Send system push notification (if permitted)
+          sendLocalNotification(alarm.title, alarm.message);
+
+          // 2. Trigger in-app alert banner
+          setInAppNotification({
+            title: alarm.title,
+            message: alarm.message,
+            targetTab
+          });
+        }
+      });
+    };
+
+    const interval = setInterval(checkSchedule, 20000);
+    // Initial check on mount
+    checkSchedule();
+
+    return () => clearInterval(interval);
+  }, [alarms]);
 
   // Load persisted progress on mount
   useEffect(() => {
@@ -284,6 +367,8 @@ export default function App() {
     }
   };
 
+  const hasActiveAlarms = alarms.some((a) => a.enabled);
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors selection:bg-emerald-500 selection:text-white">
       {/* Top Header */}
@@ -294,6 +379,8 @@ export default function App() {
         isDarkMode={isDarkMode}
         onToggleDarkMode={handleToggleDarkMode}
         onResetToday={handleResetToday}
+        onOpenNotificationModal={() => setIsNotificationModalOpen(true)}
+        hasActiveAlarms={hasActiveAlarms}
       />
 
       {/* Main Content Area: Thumb & Viewport ergonomics */}
@@ -357,9 +444,30 @@ export default function App() {
             completedRoutineIds={completedRoutineIds}
             onToggleRoutineCheck={handleToggleRoutineCheck}
             onNavigateTab={setActiveTab}
+            onOpenNotificationModal={() => setIsNotificationModalOpen(true)}
           />
         )}
       </main>
+
+      {/* In-App Alarm Drop-Down Alert Banner */}
+      <InAppNotificationBanner
+        notification={inAppNotification}
+        onClose={() => setInAppNotification(null)}
+        onNavigateTab={setActiveTab}
+      />
+
+      {/* Commute Notification Alarm Scheduler Modal */}
+      <NotificationModal
+        isOpen={isNotificationModalOpen}
+        onClose={() => setIsNotificationModalOpen(false)}
+        alarms={alarms}
+        onUpdateAlarms={handleUpdateAlarms}
+        onShowInAppAlert={(title, message) =>
+          setInAppNotification({ title, message, targetTab: 'vocab' })
+        }
+        permissionStatus={permissionStatus}
+        onRefreshPermission={refreshPermission}
+      />
 
       {/* Motivational Coach Praise Popup Toast */}
       <CoachModal
