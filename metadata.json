@@ -1,0 +1,6 @@
+{
+  "name": "N2 스프린터 (N2 Sprinter)",
+  "description": "JLPT N2 초단기 합격을 위한 모바일 쪼개기 학습 코치 (단어 50개, 10분 문법 퀘스트, 독해 스피드런, 실전 퀴즈, 일정 및 특급 칭찬 시스템)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
