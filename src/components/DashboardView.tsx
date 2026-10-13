@@ -10,7 +10,10 @@ import {
   HelpCircle,
   Clock,
   Target,
-  Trophy
+  Trophy,
+  BarChart3,
+  CalendarCheck,
+  TrendingUp
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 import { DAILY_MOTIVATIONS } from '../data/praise';
@@ -53,6 +56,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   totalReadingCount,
   completedQuizCount,
   totalQuizCount,
+  completedRoutineCount,
+  totalRoutineCount,
   onNavigateTab,
   todayMissions,
   onToggleMission
@@ -78,6 +83,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const dayIndex = new Date().getDate() % DAILY_MOTIVATIONS.length;
   const dailyQuote = DAILY_MOTIVATIONS[dayIndex];
 
+  // 5 Learning Domain calculations for today's study volume
+  const wordsPercent = totalWordsCount > 0 ? Math.round((completedWordsCount / totalWordsCount) * 100) : 0;
+  const grammarPercent = totalGrammarCount > 0 ? Math.round((completedGrammarCount / totalGrammarCount) * 100) : 0;
+  const readingPercent = totalReadingCount > 0 ? Math.round((completedReadingCount / totalReadingCount) * 100) : 0;
+  const quizPercent = totalQuizCount > 0 ? Math.round((completedQuizCount / totalQuizCount) * 100) : 0;
+  const routinePercent = totalRoutineCount > 0 ? Math.round((completedRoutineCount / totalRoutineCount) * 100) : 0;
+
+  const totalPossibleActions = totalWordsCount + totalGrammarCount + totalReadingCount + totalQuizCount + totalRoutineCount;
+  const totalCompletedActions = completedWordsCount + completedGrammarCount + completedReadingCount + completedQuizCount + completedRoutineCount;
+  const overallActionsPercent = totalPossibleActions > 0 ? Math.round((totalCompletedActions / totalPossibleActions) * 100) : 0;
+
+  const activeCategoriesCount = [
+    completedWordsCount > 0,
+    completedGrammarCount > 0,
+    completedReadingCount > 0,
+    completedQuizCount > 0,
+    completedRoutineCount > 0
+  ].filter(Boolean).length;
+
   return (
     <div className="space-y-5 pb-6">
       {/* Hero Card: D-Day & Coach Greeting */}
@@ -94,7 +118,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </span>
               <div className="flex items-center gap-1 text-xs text-amber-300 font-bold bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-400/20">
                 <Flame className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                <span>{streakDays}일 연속 달성</span>
+                <span>{streakDays === 1 ? '1일차 (오늘 첫 시작!)' : `${streakDays}일 연속 학습 달성`}</span>
               </div>
             </div>
 
@@ -142,6 +166,169 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               )}
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* 5-Domain Daily Study Volume & Statistics Card */}
+      <section className="bg-white dark:bg-slate-800/95 rounded-3xl p-5 sm:p-6 border border-slate-200 dark:border-slate-700 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-700/60">
+          <div>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="p-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400">
+                <BarChart3 className="w-4 h-4" />
+              </span>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                오늘의 하루 학습량 & 5대 영역 통계
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              단어 · 문법 · 독해 · 퀴즈 · 기출 루틴의 하루 실천 분석
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 tabular-nums">
+              {activeCategoriesCount}/5개 영역 참여 중 ({totalCompletedActions}개 완료)
+            </span>
+          </div>
+        </div>
+
+        {/* 5 Domains Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
+          {/* 1. 단어 */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab('vocab')}
+            className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/70 hover:border-emerald-500 text-left transition-all group flex flex-col justify-between min-h-[92px]"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">단어 50개</span>
+              </div>
+              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+                {wordsPercent}%
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-1.5">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                style={{ width: `${wordsPercent}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="tabular-nums font-semibold">{completedWordsCount} / {totalWordsCount}개</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+            </div>
+          </button>
+
+          {/* 2. 문법 */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab('grammar')}
+            className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/70 hover:border-sky-500 text-left transition-all group flex flex-col justify-between min-h-[92px]"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">10분 문법</span>
+              </div>
+              <span className="text-xs font-black text-sky-600 dark:text-sky-400 tabular-nums">
+                {grammarPercent}%
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-1.5">
+              <div
+                className="h-full bg-sky-500 rounded-full transition-all duration-300"
+                style={{ width: `${grammarPercent}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="tabular-nums font-semibold">{completedGrammarCount} / {totalGrammarCount}개</span>
+              <span className="text-sky-600 dark:text-sky-400 font-bold group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+            </div>
+          </button>
+
+          {/* 3. 독해 */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab('reading')}
+            className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/70 hover:border-amber-500 text-left transition-all group flex flex-col justify-between min-h-[92px]"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">단문 독해</span>
+              </div>
+              <span className="text-xs font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                {readingPercent}%
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-1.5">
+              <div
+                className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                style={{ width: `${readingPercent}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="tabular-nums font-semibold">{completedReadingCount} / {totalReadingCount}지문</span>
+              <span className="text-amber-600 dark:text-amber-400 font-bold group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+            </div>
+          </button>
+
+          {/* 4. 퀴즈 */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab('quiz')}
+            className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/70 hover:border-purple-500 text-left transition-all group flex flex-col justify-between min-h-[92px]"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <HelpCircle className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">미니 퀴즈</span>
+              </div>
+              <span className="text-xs font-black text-purple-600 dark:text-purple-400 tabular-nums">
+                {quizPercent}%
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-1.5">
+              <div
+                className="h-full bg-purple-500 rounded-full transition-all duration-300"
+                style={{ width: `${quizPercent}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="tabular-nums font-semibold">{completedQuizCount} / {totalQuizCount}문제</span>
+              <span className="text-purple-600 dark:text-purple-400 font-bold group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+            </div>
+          </button>
+
+          {/* 5. 기출/루틴 */}
+          <button
+            type="button"
+            onClick={() => onNavigateTab('schedule')}
+            className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-700/70 hover:border-teal-500 text-left transition-all group flex flex-col justify-between min-h-[92px]"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <CalendarCheck className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">루틴 & 기출</span>
+              </div>
+              <span className="text-xs font-black text-teal-600 dark:text-teal-400 tabular-nums">
+                {routinePercent}%
+              </span>
+            </div>
+            <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-1.5">
+              <div
+                className="h-full bg-teal-500 rounded-full transition-all duration-300"
+                style={{ width: `${routinePercent}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+              <span className="tabular-nums font-semibold">{completedRoutineCount} / {totalRoutineCount}개</span>
+              <span className="text-teal-600 dark:text-teal-400 font-bold group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+            </div>
+          </button>
         </div>
       </section>
 

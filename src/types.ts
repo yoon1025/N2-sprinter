@@ -1,5 +1,13 @@
 export type ActiveTab = 'dashboard' | 'vocab' | 'grammar' | 'reading' | 'quiz' | 'schedule';
 
+export interface KanjiDetail {
+  character: string;   // 한자 (예: 把)
+  krMeaning: string;   // 한자 뜻/음 (예: 잡을 파)
+  onyomi: string;      // 음독 (예: ハ)
+  kunyomi: string;     // 훈독 (예: と・る, 없으면 '-')
+  radical: string;     // 부수 (예: 扌 [재방변 / 손 수])
+}
+
 export interface WordItem {
   id: string;
   kanji: string;
@@ -11,6 +19,7 @@ export interface WordItem {
   exampleKr: string;
   slot: 'morning' | 'evening'; // 25 morning (출근길), 25 evening (퇴근길)
   tip?: string;
+  kanjiDetails?: KanjiDetail[];
 }
 
 export interface GrammarQuest {

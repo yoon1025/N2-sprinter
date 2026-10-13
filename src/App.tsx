@@ -35,7 +35,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [examDate, setExamDate] = useState<string>('2026-12-06');
-  const [streakDays, setStreakDays] = useState<number>(5);
+  const [streakDays, setStreakDays] = useState<number>(1);
 
   // Completed items states
   const [completedWordIds, setCompletedWordIds] = useState<string[]>([]);
@@ -121,6 +121,43 @@ export default function App() {
     return () => clearInterval(interval);
   }, [alarms]);
 
+  // Helper date strings
+  const getTodayDateStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getYesterdayDateStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Record daily study activity and increment streak
+  const recordStudyActivity = () => {
+    const todayStr = getTodayDateStr();
+    const yesterdayStr = getYesterdayDateStr();
+    const lastDate = localStorage.getItem('n2_last_studied_date');
+
+    if (lastDate !== todayStr) {
+      let nextStreak = 1;
+      if (lastDate === yesterdayStr) {
+        nextStreak = streakDays + 1;
+      } else {
+        nextStreak = 1;
+      }
+      setStreakDays(nextStreak);
+      localStorage.setItem('n2_streak_days', String(nextStreak));
+      localStorage.setItem('n2_last_studied_date', todayStr);
+    }
+  };
+
   // Load persisted progress on mount
   useEffect(() => {
     try {
@@ -133,8 +170,26 @@ export default function App() {
       const savedDate = localStorage.getItem('n2_exam_date');
       if (savedDate) setExamDate(savedDate);
 
+      // Manage streak based on calendar dates
+      const todayStr = getTodayDateStr();
+      const yesterdayStr = getYesterdayDateStr();
+      const savedLastStudied = localStorage.getItem('n2_last_studied_date');
       const savedStreak = localStorage.getItem('n2_streak_days');
-      if (savedStreak) setStreakDays(parseInt(savedStreak, 10) || 5);
+
+      if (savedLastStudied) {
+        if (savedLastStudied === todayStr || savedLastStudied === yesterdayStr) {
+          const parsed = parseInt(savedStreak || '1', 10);
+          setStreakDays(parsed > 0 ? parsed : 1);
+        } else {
+          // More than 1 day skipped -> reset to 1
+          setStreakDays(1);
+          localStorage.setItem('n2_streak_days', '1');
+        }
+      } else {
+        // First-time learner starting fresh
+        setStreakDays(1);
+        localStorage.setItem('n2_streak_days', '1');
+      }
 
       const savedWords = localStorage.getItem('n2_completed_words');
       if (savedWords) setCompletedWordIds(JSON.parse(savedWords));
@@ -194,9 +249,10 @@ export default function App() {
     localStorage.setItem('n2_exam_date', newDate);
   };
 
-  // Trigger coach praise
+  // Trigger coach praise & record study date
   const triggerPraise = () => {
     soundService.playCheck();
+    recordStudyActivity();
     const praise = getRandomPraise();
     setCurrentPraise(praise);
   };
@@ -251,6 +307,7 @@ export default function App() {
 
   // Complete Quiz handler
   const handleCompleteQuiz = (correctCount: number, total: number) => {
+    recordStudyActivity();
     const praise = getRandomPraise();
     setCurrentPraise({
       ...praise,
@@ -269,13 +326,16 @@ export default function App() {
 
   // Reset today's checklist
   const handleResetToday = () => {
-    if (window.confirm('오늘의 학습 체크리스트를 초기화하시겠습니까?')) {
+    if (window.confirm('오늘의 학습 체크리스트와 스트릭을 1일차로 초기화하시겠습니까?')) {
       soundService.playClick();
       setCompletedWordIds([]);
       setCompletedGrammarIds([]);
       setCompletedReadingIds([]);
       setCompletedQuizIds([]);
       setCompletedRoutineIds([]);
+      setStreakDays(1);
+      localStorage.setItem('n2_streak_days', '1');
+      localStorage.removeItem('n2_last_studied_date');
     }
   };
 

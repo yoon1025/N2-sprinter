@@ -11,7 +11,10 @@ import {
   RotateCcw,
   Sparkles,
   Layers,
-  List
+  List,
+  BookOpen,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { WordItem } from '../types';
 import { speakJapanese } from '../utils/speech';
@@ -36,6 +39,17 @@ export const VocabView: React.FC<VocabViewProps> = ({
   const [cardIndex, setCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [hideFurigana, setHideFurigana] = useState(false);
+  const [showKanjiDetail, setShowKanjiDetail] = useState<boolean>(true);
+  const [expandedListKanjiIds, setExpandedListKanjiIds] = useState<Record<string, boolean>>({});
+
+  const toggleListKanji = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    soundService.playClick();
+    setExpandedListKanjiIds((prev) => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
 
   // Filter words by morning/evening
   const slotWords = words.filter((w) => w.slot === activeSlot);
@@ -400,6 +414,42 @@ export const VocabView: React.FC<VocabViewProps> = ({
                             💡 암기 팁: {currentCard.tip}
                           </p>
                         )}
+
+                        {/* Kanji Breakdown in Card Back */}
+                        {currentCard.kanjiDetails && currentCard.kanjiDetails.length > 0 && (
+                          <div className="bg-white/10 rounded-2xl p-3 text-left border border-white/10 select-text space-y-2">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-300">
+                              <span className="flex items-center gap-1.5">
+                                <BookOpen className="w-3.5 h-3.5" /> 한자 뜻·음독·훈독·부수
+                              </span>
+                              <span className="text-[10px] text-slate-300">
+                                {currentCard.kanjiDetails.length}글자 구성
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {currentCard.kanjiDetails.map((k, kIdx) => (
+                                <div
+                                  key={kIdx}
+                                  className="bg-black/20 rounded-xl p-2 border border-white/10 text-xs"
+                                >
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-lg font-black text-white">{k.character}</span>
+                                      <span className="text-xs font-bold text-amber-300">[{k.krMeaning}]</span>
+                                    </div>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-emerald-300 font-medium">
+                                      부수: {k.radical}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-1 text-[11px] pt-1 border-t border-white/10">
+                                    <div><span className="text-slate-400">음독: </span><strong className="text-sky-300">{k.onyomi}</strong></div>
+                                    <div><span className="text-slate-400">훈독: </span><strong className="text-emerald-300">{k.kunyomi}</strong></div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -447,6 +497,70 @@ export const VocabView: React.FC<VocabViewProps> = ({
                     <ChevronRight className="w-6 h-6" />
                   </button>
                 </div>
+
+                {/* Dedicated Expandable Kanji Deep Learning Panel for Current Word */}
+                {currentCard.kanjiDetails && currentCard.kanjiDetails.length > 0 && (
+                  <div className="mt-3.5 bg-white dark:bg-slate-800/95 rounded-2xl p-4 border border-slate-200 dark:border-slate-700/80 shadow-xs">
+                    <button
+                      type="button"
+                      onClick={() => setShowKanjiDetail(!showKanjiDetail)}
+                      className="w-full flex items-center justify-between text-left cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+                          漢
+                        </div>
+                        <div>
+                          <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                            한자 심층 분석 (뜻·음독·훈독·부수)
+                          </h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            한자 어원과 부수를 알면 N2 어휘 문제 정답률이 2배 상승합니다
+                          </p>
+                        </div>
+                      </div>
+                      <span className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        {showKanjiDetail ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </span>
+                    </button>
+
+                    {showKanjiDetail && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/60 animate-in fade-in duration-200">
+                        {currentCard.kanjiDetails.map((k, kIdx) => (
+                          <div
+                            key={kIdx}
+                            className="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-3 border border-slate-200/80 dark:border-slate-700/60 text-xs space-y-1.5 select-text"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl font-black text-slate-900 dark:text-white leading-none">
+                                  {k.character}
+                                </span>
+                                <span className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400">
+                                  [{k.krMeaning}]
+                                </span>
+                              </div>
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 font-bold">
+                                부수: {k.radical}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 text-xs">
+                              <div className="bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                <span className="text-[10px] text-slate-400 block font-medium">일본어 음독 (音読み)</span>
+                                <strong className="text-sky-600 dark:text-sky-400 font-extrabold text-sm">{k.onyomi}</strong>
+                              </div>
+                              <div className="bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-100 dark:border-slate-700">
+                                <span className="text-[10px] text-slate-400 block font-medium">일본어 훈독 (訓読み)</span>
+                                <strong className="text-emerald-600 dark:text-emerald-400 font-extrabold text-sm">{k.kunyomi}</strong>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )
           )}
@@ -522,6 +636,71 @@ export const VocabView: React.FC<VocabViewProps> = ({
                       <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-1.5 flex items-center gap-1">
                         <span>💡 {word.tip}</span>
                       </p>
+                    )}
+
+                    {/* Kanji Breakdown in List Mode */}
+                    {word.kanjiDetails && word.kanjiDetails.length > 0 && (
+                      <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-700/60">
+                        <button
+                          type="button"
+                          onClick={(e) => toggleListKanji(word.id, e)}
+                          className="w-full flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 py-1 transition-colors cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>한자 분석 (뜻·음독·훈독·부수)</span>
+                          </span>
+                          <span className="flex items-center gap-1 text-[10px]">
+                            {expandedListKanjiIds[word.id] !== false ? (
+                              <>
+                                <span>접기</span>
+                                <ChevronUp className="w-3 h-3" />
+                              </>
+                            ) : (
+                              <>
+                                <span>펼치기 ({word.kanjiDetails.length}자)</span>
+                                <ChevronDown className="w-3 h-3" />
+                              </>
+                            )}
+                          </span>
+                        </button>
+
+                        {expandedListKanjiIds[word.id] !== false && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1.5 animate-in fade-in duration-150">
+                            {word.kanjiDetails.map((k, kIdx) => (
+                              <div
+                                key={kIdx}
+                                className="bg-slate-50 dark:bg-slate-900/60 rounded-xl p-2.5 border border-slate-200/80 dark:border-slate-700/60 text-xs"
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-lg font-black text-slate-900 dark:text-white leading-none">
+                                      {k.character}
+                                    </span>
+                                    <span className="font-extrabold text-amber-600 dark:text-amber-400 text-xs">
+                                      [{k.krMeaning}]
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium">
+                                    부수: {k.radical}
+                                  </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-1 text-[11px] pt-1 border-t border-slate-200/50 dark:border-slate-700/50">
+                                  <div>
+                                    <span className="text-slate-400">음독: </span>
+                                    <strong className="text-sky-600 dark:text-sky-400 font-bold">{k.onyomi}</strong>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-400">훈독: </span>
+                                    <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{k.kunyomi}</strong>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
 
