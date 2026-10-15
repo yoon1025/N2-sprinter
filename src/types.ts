@@ -75,7 +75,30 @@ export interface RoutineTask {
   targetTab?: ActiveTab;
 }
 
+export interface DayMeta {
+  day: number;
+  title: string;
+  theme: string;
+  grammarSummary: string;
+  vocabCount: number;
+  grammarCount: number;
+  quizCount: number;
+}
+
+export interface DayCurriculum {
+  day: number;
+  title: string;
+  theme: string;
+  grammarSummary: string;
+  words: WordItem[];
+  grammar: GrammarQuest[];
+  reading: ReadingPassage[];
+  quiz: QuizQuestion[];
+}
+
 export interface UserProgress {
+  currentDay: number;
+  completedDays: number[];
   completedWordIds: string[];
   completedGrammarIds: string[];
   completedReadingIds: string[];

@@ -16,11 +16,9 @@ import { ScheduleView } from './components/ScheduleView';
 import { CoachModal } from './components/CoachModal';
 import { NotificationModal } from './components/NotificationModal';
 import { InAppNotificationBanner } from './components/InAppNotificationBanner';
+import { DaySelectorModal } from './components/DaySelectorModal';
 
-import { VOCABULARY_LIST } from './data/words';
-import { GRAMMAR_QUESTS } from './data/grammar';
-import { READING_PASSAGES } from './data/reading';
-import { DAILY_QUIZZES } from './data/quiz';
+import { getDayCurriculum, FIFTY_DAYS_SYLLABUS } from './data/curriculumData';
 import { getRandomPraise, PraiseQuote } from './data/praise';
 import { soundService } from './utils/sound';
 import {
@@ -36,6 +34,28 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [examDate, setExamDate] = useState<string>('2026-12-06');
   const [streakDays, setStreakDays] = useState<number>(1);
+
+  // 50-Day Curriculum State
+  const [currentDay, setCurrentDay] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('n2_current_day');
+      const parsed = saved ? parseInt(saved, 10) : 1;
+      return parsed >= 1 && parsed <= 50 ? parsed : 1;
+    } catch {
+      return 1;
+    }
+  });
+
+  const [completedDays, setCompletedDays] = useState<number[]>(() => {
+    try {
+      const saved = localStorage.getItem('n2_completed_days');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [isDaySelectorOpen, setIsDaySelectorOpen] = useState<boolean>(false);
 
   // Completed items states
   const [completedWordIds, setCompletedWordIds] = useState<string[]>([]);
@@ -212,6 +232,14 @@ export default function App() {
 
   // Save changes to localStorage
   useEffect(() => {
+    localStorage.setItem('n2_current_day', String(currentDay));
+  }, [currentDay]);
+
+  useEffect(() => {
+    localStorage.setItem('n2_completed_days', JSON.stringify(completedDays));
+  }, [completedDays]);
+
+  useEffect(() => {
     localStorage.setItem('n2_completed_words', JSON.stringify(completedWordIds));
   }, [completedWordIds]);
 
@@ -305,87 +333,126 @@ export default function App() {
     }
   };
 
+  // Current day data from 50-day curriculum
+  const currentDayData = getDayCurriculum(currentDay);
+
+  // Mark current day completed
+  const handleCompleteCurrentDay = () => {
+    soundService.playFanfare();
+    recordStudyActivity();
+    if (!completedDays.includes(currentDay)) {
+      setCompletedDays((prev) => [...prev, currentDay]);
+    }
+    const isLastDay = currentDay >= 50;
+    setCurrentPraise({
+      title: isLastDay ? '🏆 N2 50일 커리큘럼 대망의 완주!' : `🎉 Day ${currentDay} 완주 성공!`,
+      message: isLastDay
+        ? '50일 완성 N2 공식 출제 기준을 모두 정복하셨습니다! 시험장에서 최고의 실력을 발휘하세요!'
+        : `Day ${currentDay}의 모든 훈련을 성공적으로 마쳤습니다!`,
+      coachNote: isLastDay
+        ? '이제 약점 퀴즈와 단어를 훑어보며 최종 점검하세요.'
+        : `내일은 Day ${currentDay + 1} (${FIFTY_DAYS_SYLLABUS[currentDay]?.theme || '새로운 파트'})이 기다리고 있습니다! 다음 Day로 넘어가볼까요?`
+    });
+  };
+
   // Complete Quiz handler
   const handleCompleteQuiz = (correctCount: number, total: number) => {
     recordStudyActivity();
     const praise = getRandomPraise();
     setCurrentPraise({
       ...praise,
-      title: correctCount === total ? '퀴즈 100점 만점 돌파! 🏆' : '오늘의 퀴즈 스프린트 완료! 🎯',
+      title: correctCount === total ? `Day ${currentDay} 퀴즈 100점 만점! 🏆` : `Day ${currentDay} 확인 퀴즈 완료! 🎯`,
       message: `${total}문제 중 ${correctCount}문제 정답! 뇌에 N2 기출 공식이 완벽히 새겨졌습니다.`
     });
-    setCompletedQuizIds(['q-01', 'q-02', 'q-03']);
+    const dayQuizIds = currentDayData.quiz.map((q) => q.id);
+    setCompletedQuizIds((prev) => Array.from(new Set([...prev, ...dayQuizIds])));
   };
 
-  // Reset words slot
+  // Reset words slot for current day
   const handleResetSlot = (slot: 'morning' | 'evening') => {
     soundService.playClick();
-    const slotWordIds = VOCABULARY_LIST.filter((w) => w.slot === slot).map((w) => w.id);
+    const slotWordIds = currentDayData.words.filter((w) => w.slot === slot).map((w) => w.id);
     setCompletedWordIds((prev) => prev.filter((id) => !slotWordIds.includes(id)));
   };
 
   // Reset today's checklist
   const handleResetToday = () => {
-    if (window.confirm('오늘의 학습 체크리스트와 스트릭을 1일차로 초기화하시겠습니까?')) {
+    if (window.confirm('현재 일차의 학습 체크리스트와 스트릭을 초기화하시겠습니까?')) {
       soundService.playClick();
-      setCompletedWordIds([]);
-      setCompletedGrammarIds([]);
-      setCompletedReadingIds([]);
-      setCompletedQuizIds([]);
-      setCompletedRoutineIds([]);
+      const currentDayWordIds = currentDayData.words.map((w) => w.id);
+      const currentDayGrammarIds = currentDayData.grammar.map((g) => g.id);
+      const currentDayReadingIds = currentDayData.reading.map((r) => r.id);
+      const currentDayQuizIds = currentDayData.quiz.map((q) => q.id);
+
+      setCompletedWordIds((prev) => prev.filter((id) => !currentDayWordIds.includes(id)));
+      setCompletedGrammarIds((prev) => prev.filter((id) => !currentDayGrammarIds.includes(id)));
+      setCompletedReadingIds((prev) => prev.filter((id) => !currentDayReadingIds.includes(id)));
+      setCompletedQuizIds((prev) => prev.filter((id) => !currentDayQuizIds.includes(id)));
       setStreakDays(1);
       localStorage.setItem('n2_streak_days', '1');
       localStorage.removeItem('n2_last_studied_date');
     }
   };
 
-  // Today's missions for dashboard
-  const morningWordsDone = VOCABULARY_LIST.filter((w) => w.slot === 'morning').every((w) =>
+  // Today's missions for dashboard based on active Day
+  const morningWords = currentDayData.words.filter((w) => w.slot === 'morning');
+  const eveningWords = currentDayData.words.filter((w) => w.slot === 'evening');
+
+  const morningWordsDone = morningWords.length > 0 && morningWords.every((w) =>
     completedWordIds.includes(w.id)
   );
-  const eveningWordsDone = VOCABULARY_LIST.filter((w) => w.slot === 'evening').every((w) =>
+  const eveningWordsDone = eveningWords.length > 0 && eveningWords.every((w) =>
     completedWordIds.includes(w.id)
+  );
+  const grammarDone = currentDayData.grammar.length > 0 && currentDayData.grammar.every((g) =>
+    completedGrammarIds.includes(g.id)
+  );
+  const readingDone = currentDayData.reading.length > 0 && currentDayData.reading.every((r) =>
+    completedReadingIds.includes(r.id)
+  );
+  const quizDone = currentDayData.quiz.length > 0 && currentDayData.quiz.every((q) =>
+    completedQuizIds.includes(q.id)
   );
 
   const todayMissions = [
     {
       id: 'mission-m-vocab',
-      title: '출근길 지하철 단어 25개 암기',
-      subtext: '출근 이동 시간 20분 동안 핵심 단어 25개 플래시카드 완독',
+      title: `출근길 지하철 단어 ${morningWords.length}개 암기`,
+      subtext: `출근 이동 시간 동안 Day ${currentDay} 핵심 어휘 플래시카드 완독`,
       category: '어휘',
-      completed: morningWordsDone || completedWordIds.length >= 25,
+      completed: morningWordsDone,
       targetTab: 'vocab' as ActiveTab
     },
     {
       id: 'mission-grammar',
-      title: '점심시간 10분 문법 퀘스트 1개 정복',
-      subtext: '수수동, 경어, 접속사 공식 1개 완벽 이해 & 예문 읽기',
+      title: `점심시간 10분 문법 퀘스트 정복`,
+      subtext: `Day ${currentDay} 필수 문법 (${currentDayData.grammarSummary}) 공식 이해 & 예문 독파`,
       category: '문법',
-      completed: completedGrammarIds.length >= 1,
+      completed: grammarDone,
       targetTab: 'grammar' as ActiveTab
     },
     {
       id: 'mission-e-vocab',
-      title: '퇴근길 지하철 단어 25개 암기 & 복습',
-      subtext: '퇴근 이동 시간 동안 25개 추가 암기 (하루 50개 달성)',
+      title: `퇴근길 지하철 단어 ${eveningWords.length}개 암기 & 복습`,
+      subtext: `퇴근 이동 시간 동안 ${eveningWords.length}개 추가 암기 (Day ${currentDay} 단어 완주)`,
       category: '어휘',
-      completed: eveningWordsDone || completedWordIds.length >= 45,
+      completed: eveningWordsDone,
       targetTab: 'vocab' as ActiveTab
     },
     {
       id: 'mission-reading',
-      title: '취침 전 단문 독해 1지문 3분 스피드런',
-      subtext: '질문 먼저 읽고 정답 키워드 찾아내기 훈련',
+      title: `취침 전 단문 독해 1지문 3분 스피드런`,
+      subtext: `질문 먼저 읽고 정답 키워드 찾아내기 훈련`,
       category: '독해',
-      completed: completedReadingIds.length >= 1,
+      completed: readingDone,
       targetTab: 'reading' as ActiveTab
     },
     {
       id: 'mission-quiz',
-      title: '오늘의 N2 기출 변형 3문제 풀기',
-      subtext: '가벼운 미니 퀴즈로 오늘 배운 내용 즉시 확인',
+      title: `Day ${currentDay} 기출 변형 확인 테스트 (${currentDayData.quiz.length}문제)`,
+      subtext: `가벼운 확인 퀴즈로 오늘 배운 내용 즉시 확인 및 점검`,
       category: '퀴즈',
-      completed: completedQuizIds.length >= 3,
+      completed: quizDone,
       targetTab: 'quiz' as ActiveTab
     }
   ];
@@ -395,7 +462,7 @@ export default function App() {
 
   const handleToggleMission = (missionId: string, targetTab: ActiveTab) => {
     if (missionId === 'mission-m-vocab') {
-      const morningIds = VOCABULARY_LIST.filter((w) => w.slot === 'morning').map((w) => w.id);
+      const morningIds = morningWords.map((w) => w.id);
       const isAllDone = morningIds.every((id) => completedWordIds.includes(id));
       if (isAllDone) {
         setCompletedWordIds((prev) => prev.filter((id) => !morningIds.includes(id)));
@@ -404,9 +471,16 @@ export default function App() {
         triggerPraise();
       }
     } else if (missionId === 'mission-grammar') {
-      handleToggleGrammarCheck('g-01');
+      const gIds = currentDayData.grammar.map((g) => g.id);
+      const isAllDone = gIds.every((id) => completedGrammarIds.includes(id));
+      if (isAllDone) {
+        setCompletedGrammarIds((prev) => prev.filter((id) => !gIds.includes(id)));
+      } else {
+        setCompletedGrammarIds((prev) => Array.from(new Set([...prev, ...gIds])));
+        triggerPraise();
+      }
     } else if (missionId === 'mission-e-vocab') {
-      const eveningIds = VOCABULARY_LIST.filter((w) => w.slot === 'evening').map((w) => w.id);
+      const eveningIds = eveningWords.map((w) => w.id);
       const isAllDone = eveningIds.every((id) => completedWordIds.includes(id));
       if (isAllDone) {
         setCompletedWordIds((prev) => prev.filter((id) => !eveningIds.includes(id)));
@@ -415,19 +489,33 @@ export default function App() {
         triggerPraise();
       }
     } else if (missionId === 'mission-reading') {
-      handleToggleReadingCheck('r-01');
-    } else if (missionId === 'mission-quiz') {
-      const isDone = completedQuizIds.length >= 3;
-      if (isDone) {
-        setCompletedQuizIds([]);
+      const rIds = currentDayData.reading.map((r) => r.id);
+      const isAllDone = rIds.every((id) => completedReadingIds.includes(id));
+      if (isAllDone) {
+        setCompletedReadingIds((prev) => prev.filter((id) => !rIds.includes(id)));
       } else {
-        setCompletedQuizIds(['q-01', 'q-02', 'q-03']);
+        setCompletedReadingIds((prev) => Array.from(new Set([...prev, ...rIds])));
+        triggerPraise();
+      }
+    } else if (missionId === 'mission-quiz') {
+      const qIds = currentDayData.quiz.map((q) => q.id);
+      const isAllDone = qIds.every((id) => completedQuizIds.includes(id));
+      if (isAllDone) {
+        setCompletedQuizIds((prev) => prev.filter((id) => !qIds.includes(id)));
+      } else {
+        setCompletedQuizIds((prev) => Array.from(new Set([...prev, ...qIds])));
         triggerPraise();
       }
     }
   };
 
   const hasActiveAlarms = alarms.some((a) => a.enabled);
+
+  // Current day statistics counts
+  const currentDayCompletedWords = completedWordIds.filter((id) => currentDayData.words.some((w) => w.id === id)).length;
+  const currentDayCompletedGrammar = completedGrammarIds.filter((id) => currentDayData.grammar.some((g) => g.id === id)).length;
+  const currentDayCompletedReading = completedReadingIds.filter((id) => currentDayData.reading.some((r) => r.id === id)).length;
+  const currentDayCompletedQuiz = completedQuizIds.filter((id) => currentDayData.quiz.some((q) => q.id === id)).length;
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors selection:bg-emerald-500 selection:text-white">
@@ -441,6 +529,11 @@ export default function App() {
         onResetToday={handleResetToday}
         onOpenNotificationModal={() => setIsNotificationModalOpen(true)}
         hasActiveAlarms={hasActiveAlarms}
+        currentDay={currentDay}
+        onOpenDaySelector={() => setIsDaySelectorOpen(true)}
+        onChangeDay={(newDay) => setCurrentDay(newDay)}
+        isCurrentDayCompleted={completedDays.includes(currentDay)}
+        dayTitle={currentDayData.title}
       />
 
       {/* Main Content Area: Thumb & Viewport ergonomics */}
@@ -449,14 +542,20 @@ export default function App() {
           <DashboardView
             examDate={examDate}
             streakDays={streakDays}
-            completedWordsCount={completedWordIds.length}
-            totalWordsCount={VOCABULARY_LIST.length}
-            completedGrammarCount={completedGrammarIds.length}
-            totalGrammarCount={GRAMMAR_QUESTS.length}
-            completedReadingCount={completedReadingIds.length}
-            totalReadingCount={READING_PASSAGES.length}
-            completedQuizCount={completedQuizIds.length}
-            totalQuizCount={3}
+            currentDay={currentDay}
+            completedDays={completedDays}
+            currentDayTitle={currentDayData.title}
+            onSelectDay={(newDay) => setCurrentDay(newDay)}
+            onOpenDaySelector={() => setIsDaySelectorOpen(true)}
+            onCompleteCurrentDay={handleCompleteCurrentDay}
+            completedWordsCount={currentDayCompletedWords}
+            totalWordsCount={currentDayData.words.length}
+            completedGrammarCount={currentDayCompletedGrammar}
+            totalGrammarCount={currentDayData.grammar.length}
+            completedReadingCount={currentDayCompletedReading}
+            totalReadingCount={currentDayData.reading.length}
+            completedQuizCount={currentDayCompletedQuiz}
+            totalQuizCount={currentDayData.quiz.length}
             completedRoutineCount={completedRoutineIds.length}
             totalRoutineCount={4}
             onNavigateTab={setActiveTab}
@@ -468,7 +567,7 @@ export default function App() {
 
         {activeTab === 'vocab' && (
           <VocabView
-            words={VOCABULARY_LIST}
+            words={currentDayData.words}
             completedWordIds={completedWordIds}
             onToggleWordCheck={handleToggleWordCheck}
             onResetSlot={handleResetSlot}
@@ -477,7 +576,7 @@ export default function App() {
 
         {activeTab === 'grammar' && (
           <GrammarView
-            quests={GRAMMAR_QUESTS}
+            quests={currentDayData.grammar}
             completedGrammarIds={completedGrammarIds}
             onToggleGrammarCheck={handleToggleGrammarCheck}
           />
@@ -485,7 +584,7 @@ export default function App() {
 
         {activeTab === 'reading' && (
           <ReadingView
-            passages={READING_PASSAGES}
+            passages={currentDayData.reading}
             completedReadingIds={completedReadingIds}
             onToggleReadingCheck={handleToggleReadingCheck}
           />
@@ -493,7 +592,7 @@ export default function App() {
 
         {activeTab === 'quiz' && (
           <QuizView
-            questions={DAILY_QUIZZES}
+            questions={currentDayData.quiz}
             completedQuizIds={completedQuizIds}
             onCompleteQuiz={handleCompleteQuiz}
           />
@@ -508,6 +607,15 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* 50-Day Curriculum RoadMap Picker Modal */}
+      <DaySelectorModal
+        isOpen={isDaySelectorOpen}
+        onClose={() => setIsDaySelectorOpen(false)}
+        currentDay={currentDay}
+        completedDays={completedDays}
+        onSelectDay={(day) => setCurrentDay(day)}
+      />
 
       {/* In-App Alarm Drop-Down Alert Banner */}
       <InAppNotificationBanner

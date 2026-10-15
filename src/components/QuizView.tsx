@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   HelpCircle,
   CheckCircle2,
@@ -30,9 +30,16 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const [showHint, setShowHint] = useState<boolean>(false);
   const [isFinished, setIsFinished] = useState<boolean>(false);
 
-  // Take first 3 questions for the daily sprint (or all)
-  const quizList = questions.slice(0, 3);
-  const currentQ = quizList[currentIndex];
+  // Take all questions for the day
+  const quizList = questions.length > 0 ? questions : [];
+  const currentQ = quizList[currentIndex] || quizList[0];
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setSelectedAnswers({});
+    setShowHint(false);
+    setIsFinished(false);
+  }, [questions]);
 
   const handleSelectAnswer = (optionIdx: number) => {
     if (selectedAnswers[currentIndex] !== undefined) return; // already answered
@@ -53,7 +60,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
     if (currentIndex < quizList.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
-      // Finished all 3
+      // Finished all
       setIsFinished(true);
       const correctCount = quizList.filter(
         (q, idx) => selectedAnswers[idx] === q.answerIndex
@@ -83,6 +90,14 @@ export const QuizView: React.FC<QuizViewProps> = ({
     setShowHint(false);
   };
 
+  if (!currentQ) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        문제를 불러오는 중입니다...
+      </div>
+    );
+  }
+
   const currentAnswer = selectedAnswers[currentIndex];
   const isAnswered = currentAnswer !== undefined;
   const isCorrect = isAnswered && currentAnswer === currentQ.answerIndex;
@@ -99,14 +114,14 @@ export const QuizView: React.FC<QuizViewProps> = ({
           <div>
             <div className="flex items-center gap-1.5 text-purple-200 text-xs font-bold mb-1">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>오늘의 N2 기출 변형 미니 퀴즈</span>
+              <span>오늘의 N2 기출 변형 확인 퀴즈</span>
             </div>
             <h3 className="text-base sm:text-lg font-black text-white">
-              가볍게 3문제 풀고 합격 자신감 충전!
+              핵심 {quizList.length}문제 풀고 합격 자신감 충전!
             </h3>
           </div>
           <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center font-black text-amber-300 text-base tabular-nums">
-            {currentIndex + 1}/3
+            {currentIndex + 1}/{quizList.length}
           </div>
         </div>
 

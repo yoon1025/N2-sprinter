@@ -16,10 +16,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 }) => {
   const tabs: { id: ActiveTab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { id: 'dashboard', label: '대시보드', icon: Home },
-    { id: 'vocab', label: '단어 50', icon: BookOpen },
+    { id: 'vocab', label: '단어장', icon: BookOpen },
     { id: 'grammar', label: '10분 문법', icon: Sparkles },
     { id: 'reading', label: '단문 독해', icon: FileText },
-    { id: 'quiz', label: '미니 퀴즈', icon: CheckCircle2 },
+    { id: 'quiz', label: '확인 퀴즈', icon: CheckCircle2 },
     { id: 'schedule', label: '루틴/기출', icon: Calendar }
   ];
 

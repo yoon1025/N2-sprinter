@@ -51,6 +51,9 @@ export const VocabView: React.FC<VocabViewProps> = ({
     }));
   };
 
+  const morningWords = words.filter((w) => w.slot === 'morning');
+  const eveningWords = words.filter((w) => w.slot === 'evening');
+
   // Filter words by morning/evening
   const slotWords = words.filter((w) => w.slot === activeSlot);
 
@@ -121,7 +124,7 @@ export const VocabView: React.FC<VocabViewProps> = ({
               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
           }`}
         >
-          <span>🌅 출근길 스프린트 (25개)</span>
+          <span>🌅 출근길 스프린트 ({morningWords.length}개)</span>
         </button>
 
         <button
@@ -137,7 +140,7 @@ export const VocabView: React.FC<VocabViewProps> = ({
               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
           }`}
         >
-          <span>🚇 퇴근길 스프린트 (25개)</span>
+          <span>🚇 퇴근길 스프린트 ({eveningWords.length}개)</span>
         </button>
       </div>
 
